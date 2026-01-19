@@ -153,6 +153,11 @@
             </div>
 
             <div class="form-group">
+                <label for="maintenanceRatio">Broker Maintenance Ratio (%)</label>
+                <input type="number" id="maintenanceRatio" value="25" min="0" max="100" step="0.1">
+            </div>
+
+            <div class="form-group">
                 <label for="years">Simulation Years</label>
                 <input type="number" id="years" value="10" min="1" max="20" step="1">
             </div>
@@ -174,6 +179,7 @@
             <div id="chart-container">
                 <canvas id="growthChart"></canvas>
             </div>
+            <div id="maintenanceWarning" style="display:none;margin-bottom:12px;padding:10px;border-radius:8px;background:#3a1a1a;color:#fff;font-weight:600"></div>
             <table id="dataTable">
                 <thead>
                     <tr>
@@ -182,6 +188,8 @@
                         <th>Margin Debt ($)</th>
                         <th>Equity ($)</th>
                         <th>Equity Ratio (%)</th>
+                        <th>Maint Req (%)</th>
+                        <th>Below Maint</th>
                     </tr>
                 </thead>
                 <tbody></tbody>
@@ -199,6 +207,7 @@
             const marginRate = parseFloat(document.getElementById('marginRate').value) / 100;
             const years = parseInt(document.getElementById('years').value);
             const viewMode = document.getElementById('viewMode').value;
+            const maintenanceRatio = parseFloat(document.getElementById('maintenanceRatio').value) / 100;
 
             const periods = viewMode === 'monthly' ? years * 12 : years;
             const interval = viewMode === 'monthly' ? 'Month' : 'Year';
@@ -233,25 +242,43 @@
                 debt += interest;
 
                 const equity = asset - debt;
+                const maintenanceRequirement = asset * maintenanceRatio;
+                const belowMaintenance = equity < maintenanceRequirement;
 
                 labels.push(`${interval} ${i}`);
                 assetData.push(Math.round(asset));
                 debtData.push(Math.round(debt));
                 equityData.push(Math.round(equity));
                 ratioData.push(Number(((equity / asset) * 100).toFixed(1)));
+                // store maintenance flags per period by adding attribute arrays if needed later
             }
 
             // Update Table
+            const anyBelow = ratioData.some(r => r < (maintenanceRatio * 100));
+            const warningEl = document.getElementById('maintenanceWarning');
+            if (anyBelow) {
+                warningEl.style.display = 'block';
+                warningEl.style.background = 'linear-gradient(90deg, #441111, #662222)';
+                warningEl.textContent = `Warning: One or more periods fall below the broker maintenance ratio (${(maintenanceRatio*100).toFixed(1)}%). Review borrow levels and collateral.`;
+            } else {
+                warningEl.style.display = 'none';
+                warningEl.textContent = '';
+            }
+
             const tbody = document.querySelector('#dataTable tbody');
             tbody.innerHTML = '';
             labels.forEach((label, i) => {
                 const row = document.createElement('tr');
+                const maintPercent = (maintenanceRatio * 100).toFixed(1);
+                const isBelow = ratioData[i] < (maintenanceRatio * 100);
                 row.innerHTML = `
                     <td>${label}</td>
                     <td>${assetData[i]}</td>
                     <td>${debtData[i]}</td>
-                    <td>${equityData[i]}</td>
-                    <td>${ratioData[i]}%</td>
+                    <td style="color:${isBelow ? '#ff7676' : '#c0ffff'}">${equityData[i]}</td>
+                    <td style="color:${isBelow ? '#ff7676' : '#c0ffff'}">${ratioData[i]}%</td>
+                    <td>${maintPercent}%</td>
+                    <td style="color:${isBelow ? '#ff7676' : '#9fffbf'}">${isBelow ? 'YES' : 'NO'}</td>
                 `;
                 tbody.appendChild(row);
             });
