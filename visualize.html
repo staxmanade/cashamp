@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Leveraged Dividend Simulator</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            background: linear-gradient(135deg, #0a0a2a, #1a1a4a);
+            color: #e0e0ff;
+            margin: 0;
+            padding: 20px 10px;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+        }
+        .container {
+            background: rgba(20, 20, 50, 0.85);
+            border-radius: 16px;
+            padding: 30px;
+            max-width: 1100px;
+            width: 100%;
+            box-shadow: 0 0 40px rgba(0, 255, 255, 0.25);
+            backdrop-filter: blur(12px);
+        }
+        h1 {
+            text-align: center;
+            font-family: 'Orbitron', sans-serif;
+            color: #00ffff;
+            text-shadow: 0 0 12px #00ffff;
+            margin: 0 0 30px 0;
+            font-size: 2.4rem;
+        }
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 24px 30px;
+            margin-bottom: 30px;
+        }
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+        label {
+            font-weight: 600;
+            color: #a0ffff;
+            margin-bottom: 8px;
+            font-size: 0.95rem;
+        }
+        input[type="number"],
+        select {
+            padding: 12px 14px;
+            border: 1px solid #00ffff55;
+            border-radius: 8px;
+            background: rgba(10, 10, 40, 0.7);
+            color: #f0f0ff;
+            font-size: 1.1rem;
+            transition: all 0.2s;
+        }
+        input:focus,
+        select:focus {
+            outline: none;
+            border-color: #00ffff;
+            box-shadow: 0 0 12px rgba(0, 255, 255, 0.4);
+        }
+        .button-row {
+            grid-column: 1 / -1;
+            text-align: center;
+            margin-top: 10px;
+        }
+        button {
+            padding: 14px 40px;
+            background: linear-gradient(135deg, #00ffff, #00ffaa);
+            border: none;
+            border-radius: 8px;
+            color: #0a0a2a;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.25s;
+            box-shadow: 0 4px 15px rgba(0, 255, 255, 0.3);
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 255, 255, 0.5);
+        }
+        .outputs {
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+        }
+        #chart-container {
+            background: rgba(10, 10, 30, 0.75);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 0 25px rgba(0, 255, 255, 0.15);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: rgba(10, 10, 30, 0.75);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 0 25px rgba(0, 255, 255, 0.15);
+        }
+        th, td {
+            padding: 14px 12px;
+            text-align: right;
+            border-bottom: 1px solid #00ffff22;
+        }
+        th {
+            background: linear-gradient(135deg, #00ffff22, #00ffaa22);
+            color: #e0e0ff;
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 400;
+        }
+        td {
+            color: #c0ffff;
+        }
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Roboto:wght@400;600;700&display=swap');
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Leveraged Dividend Simulator</h1>
+
+        <div class="form-grid">
+            <div class="form-group">
+                <label for="seed">Starting Seed Capital ($)</label>
+                <input type="number" id="seed" value="100000" min="0" step="1000">
+            </div>
+
+            <div class="form-group">
+                <label for="monthlyIncome">Monthly Income ($)</label>
+                <input type="number" id="monthlyIncome" value="10000" min="0" step="100">
+            </div>
+
+            <div class="form-group">
+                <label for="monthlyExpenses">Monthly Expenses ($)</label>
+                <input type="number" id="monthlyExpenses" value="10000" min="0" step="100">
+            </div>
+
+            <div class="form-group">
+                <label for="dividendYield">Dividend Yield (%)</label>
+                <input type="number" id="dividendYield" value="11.5" min="0" max="20" step="0.1">
+            </div>
+
+            <div class="form-group">
+                <label for="marginRate">Margin Interest Rate (%)</label>
+                <input type="number" id="marginRate" value="4.5" min="0" max="10" step="0.1">
+            </div>
+
+            <div class="form-group">
+                <label for="years">Simulation Years</label>
+                <input type="number" id="years" value="10" min="1" max="20" step="1">
+            </div>
+
+            <div class="form-group">
+                <label for="viewMode">View Mode</label>
+                <select id="viewMode">
+                    <option value="monthly">Monthly</option>
+                    <option value="yearly" selected>Yearly</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="button-row">
+            <button onclick="runSimulation()">Run Simulation</button>
+        </div>
+
+        <div class="outputs">
+            <div id="chart-container">
+                <canvas id="growthChart"></canvas>
+            </div>
+            <table id="dataTable">
+                <thead>
+                    <tr>
+                        <th>Period</th>
+                        <th>Asset Value ($)</th>
+                        <th>Margin Debt ($)</th>
+                        <th>Equity ($)</th>
+                        <th>Equity Ratio (%)</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        let chart;
+
+        function runSimulation() {
+            const seed = parseFloat(document.getElementById('seed').value);
+            const monthlyIncome = parseFloat(document.getElementById('monthlyIncome').value);
+            const dividendYield = parseFloat(document.getElementById('dividendYield').value) / 100;
+            const marginRate = parseFloat(document.getElementById('marginRate').value) / 100;
+            const years = parseInt(document.getElementById('years').value);
+            const viewMode = document.getElementById('viewMode').value;
+
+            const periods = viewMode === 'monthly' ? years * 12 : years;
+            const interval = viewMode === 'monthly' ? 'Month' : 'Year';
+            const monthlyDivRate = dividendYield / 12;
+            const monthlyMarginRate = marginRate / 12;
+            const periodIncome = viewMode === 'monthly' ? monthlyIncome : monthlyIncome * 12;
+
+            const monthlyExpenses = parseFloat(document.getElementById('monthlyExpenses').value) || 0;
+            const periodExpense = viewMode === 'monthly' ? monthlyExpenses : monthlyExpenses * 12;
+
+            let asset = seed;
+            let debt = 0;
+            const labels = [];
+            const assetData = [];
+            const debtData = [];
+            const equityData = [];
+            const ratioData = [];
+
+            for (let i = 1; i <= periods; i++) {
+
+                // Add net cash flow (income - expenses) to assets
+                const netCash = periodIncome;
+                asset += netCash;
+
+                //asset += periodIncome;
+                const dividends = asset * (viewMode === 'monthly' ? monthlyDivRate : dividendYield);
+                asset += dividends;
+
+                debt += periodExpense;
+
+                const interest = debt * (viewMode === 'monthly' ? monthlyMarginRate : marginRate);
+                debt += interest;
+
+                const equity = asset - debt;
+
+                labels.push(`${interval} ${i}`);
+                assetData.push(Math.round(asset));
+                debtData.push(Math.round(debt));
+                equityData.push(Math.round(equity));
+                ratioData.push(Number(((equity / asset) * 100).toFixed(1)));
+            }
+
+            // Update Table
+            const tbody = document.querySelector('#dataTable tbody');
+            tbody.innerHTML = '';
+            labels.forEach((label, i) => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${label}</td>
+                    <td>${assetData[i]}</td>
+                    <td>${debtData[i]}</td>
+                    <td>${equityData[i]}</td>
+                    <td>${ratioData[i]}%</td>
+                `;
+                tbody.appendChild(row);
+            });
+
+            // Update Chart
+            const ctx = document.getElementById('growthChart').getContext('2d');
+            if (chart) chart.destroy();
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels,
+                    datasets: [
+                        { label: 'Asset Value', data: assetData, borderColor: '#00ffaa', tension: 0.1, pointRadius: 3, pointHoverRadius: 6 },
+                        { label: 'Margin Debt',  data: debtData,  borderColor: '#ff00aa', tension: 0.1, pointRadius: 3, pointHoverRadius: 6 },
+                        { label: 'Equity',       data: equityData,borderColor: '#00ffff', tension: 0.1, pointRadius: 3, pointHoverRadius: 6 }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false
+                    },
+                    scales: {
+                        y: { beginAtZero: true, ticks: { color: '#d0d0ff' } },
+                        x: { ticks: { color: '#d0d0ff' } }
+                    },
+                    plugins: {
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            callbacks: {
+                                label: function(context) {
+                                    const label = context.dataset.label || '';
+                                    const value = context.parsed.y;
+                                    if (value === null || value === undefined) return label + ': -';
+                                    return label + ': $' + value.toLocaleString();
+                                }
+                            }
+                        },
+                        legend: { labels: { color: '#e0e0ff', font: { size: 14 } } }
+                    }
+                }
+            });
+        }
+
+        // Run once on load with defaults
+        window.onload = runSimulation;
+    </script>
+</body>
+</html>
