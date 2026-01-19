@@ -211,7 +211,7 @@
                         <th>Equity ($)</th>
                         <th>Equity Ratio (%)</th>
                         <th>Maint Req (%)</th>
-                        <th>Below Maint</th>
+                        <th>Maint Healthy</th>
                     </tr>
                 </thead>
                 <tbody></tbody>
@@ -348,6 +348,7 @@
                 debtData.push(Math.round(debt));
                 equityData.push(Math.round(equity));
                 ratioData.push(Number(((equity / asset) * 100).toFixed(1)));
+
                 // store maintenance flags per period by adding attribute arrays if needed later
             }
 
@@ -369,6 +370,7 @@
                 const row = document.createElement('tr');
                 const maintPercent = (maintenanceRatio * 100).toFixed(1);
                 const isBelow = ratioData[i] < (maintenanceRatio * 100);
+                const isHealthy = !isBelow;
                 row.innerHTML = `
                     <td>${label}</td>
                     <td>${assetData[i]}</td>
@@ -376,7 +378,7 @@
                     <td style="color:${isBelow ? '#ff7676' : '#c0ffff'}">${equityData[i]}</td>
                     <td style="color:${isBelow ? '#ff7676' : '#c0ffff'}">${ratioData[i]}%</td>
                     <td>${maintPercent}%</td>
-                    <td style="color:${isBelow ? '#ff7676' : '#9fffbf'}">${isBelow ? 'YES' : 'NO'}</td>
+                    <td style="text-align:center;font-size:1.2rem"><span role="img" aria-label="${isHealthy ? 'Healthy' : 'Below maintenance'}">${isHealthy ? '✅' : '⛔'}</span></td>
                 `;
                 tbody.appendChild(row);
             });
