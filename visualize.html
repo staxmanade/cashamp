@@ -434,6 +434,19 @@
         };
 
         // Update query whenever simulation runs
+
+        // Debounced resize handler to ensure Chart.js resizes properly
+        (function() {
+            let resizeTimeout = null;
+            window.addEventListener('resize', () => {
+                if (resizeTimeout) clearTimeout(resizeTimeout);
+                resizeTimeout = setTimeout(() => {
+                    if (chart && typeof chart.resize === 'function') {
+                        chart.resize();
+                    }
+                }, 150);
+            });
+        })();
     </script>
 </body>
 </html>
