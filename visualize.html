@@ -173,6 +173,7 @@
 
         <div class="button-row">
             <button onclick="runSimulation()">Run Simulation</button>
+            <button id="copyScenarioBtn" style="margin-left:12px;background:linear-gradient(135deg,#ffaa00,#ffcc66);">Copy Scenario</button>
         </div>
 
         <div class="outputs">
@@ -198,6 +199,82 @@
     </div>
 
     <script>
+        // Helper: read query params and set inputs
+        function loadFromQuery() {
+            const params = new URLSearchParams(window.location.search);
+            const map = {
+                seed: 'seed',
+                monthlyIncome: 'monthlyIncome',
+                monthlyExpenses: 'monthlyExpenses',
+                dividendYield: 'dividendYield',
+                marginRate: 'marginRate',
+                years: 'years',
+                viewMode: 'viewMode',
+                maintenanceRatio: 'maintenanceRatio'
+            };
+            Object.keys(map).forEach(k => {
+                if (params.has(map[k])) {
+                    const el = document.getElementById(map[k]);
+                    if (!el) return;
+                    const val = params.get(map[k]);
+                    if (el.tagName === 'SELECT') el.value = val;
+                    else el.value = val;
+                }
+            });
+        }
+
+        // Helper: update URL query params from inputs without reloading
+        function updateQuery() {
+            const params = new URLSearchParams();
+            const keys = ['seed','monthlyIncome','monthlyExpenses','dividendYield','marginRate','years','viewMode','maintenanceRatio'];
+            keys.forEach(k => {
+                const el = document.getElementById(k);
+                if (!el) return;
+                params.set(k, el.value);
+            });
+            const url = window.location.pathname + '?' + params.toString();
+            history.replaceState(null, '', url);
+        }
+
+        // Copy scenario button handler
+        async function copyScenario() {
+            updateQuery();
+            const url = window.location.href;
+            try {
+                await navigator.clipboard.writeText(url);
+                showTempMessage('Scenario link copied to clipboard');
+            } catch (e) {
+                // fallback
+                const tmp = document.createElement('input');
+                document.body.appendChild(tmp);
+                tmp.value = url;
+                tmp.select();
+                document.execCommand('copy');
+                document.body.removeChild(tmp);
+                showTempMessage('Scenario link copied to clipboard');
+            }
+        }
+
+        // temporary message toast
+        function showTempMessage(msg) {
+            let el = document.getElementById('tempMsg');
+            if (!el) {
+                el = document.createElement('div');
+                el.id = 'tempMsg';
+                el.style.position = 'fixed';
+                el.style.right = '20px';
+                el.style.top = '20px';
+                el.style.padding = '10px 16px';
+                el.style.background = 'rgba(0,0,0,0.7)';
+                el.style.color = '#fff';
+                el.style.borderRadius = '8px';
+                el.style.zIndex = 9999;
+                document.body.appendChild(el);
+            }
+            el.textContent = msg;
+            el.style.display = 'block';
+            setTimeout(() => { el.style.display = 'none'; }, 2500);
+        }
         let chart;
 
         function runSimulation() {
@@ -323,10 +400,19 @@
                     }
                 }
             });
+            // persist inputs to URL after simulation runs
+            updateQuery();
         }
 
-        // Run once on load with defaults
-        window.onload = runSimulation;
+        // Wire up copy button and load inputs from URL, then run
+        window.onload = function() {
+            loadFromQuery();
+            const copyBtn = document.getElementById('copyScenarioBtn');
+            if (copyBtn) copyBtn.addEventListener('click', copyScenario);
+            runSimulation();
+        };
+
+        // Update query whenever simulation runs
     </script>
 </body>
 </html>
