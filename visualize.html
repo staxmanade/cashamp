@@ -172,6 +172,16 @@
             </div>
 
             <div class="form-group">
+                <label for="incomeGrowth">Annual Income Growth (%)</label>
+                <input type="number" id="incomeGrowth" value="0" min="-50" max="100" step="0.1">
+            </div>
+
+            <div class="form-group">
+                <label for="expenseGrowth">Annual Expense Growth (%)</label>
+                <input type="number" id="expenseGrowth" value="0" min="-50" max="100" step="0.1">
+            </div>
+
+            <div class="form-group">
                 <label for="marginRate">Margin Interest Rate (%)</label>
                 <input type="number" id="marginRate" value="4.5" min="0" max="10" step="0.1">
             </div>
@@ -233,6 +243,8 @@
             seed: 'seed',
             monthlyIncome: 'monthlyIncome',
             monthlyExpenses: 'monthlyExpenses',
+            incomeGrowth: 'incomeGrowth',
+            expenseGrowth: 'expenseGrowth',
             dividendYield: 'dividendYield',
             marginRate: 'marginRate',
             years: 'years',
@@ -315,12 +327,14 @@
         const docMap = {
             seed: document.getElementById('seed'),
             monthlyIncome: document.getElementById('monthlyIncome'),
+            incomeGrowth: document.getElementById('incomeGrowth'),
             dividendYield: document.getElementById('dividendYield'),
             marginRate: document.getElementById('marginRate'),
             years: document.getElementById('years'),
             viewMode: document.getElementById('viewMode'),
             maintenanceRatio: document.getElementById('maintenanceRatio'),
             monthlyExpenses: document.getElementById('monthlyExpenses'),
+            expenseGrowth: document.getElementById('expenseGrowth'),
             maintenanceWarning: document.getElementById('maintenanceWarning'),
             monthlyIncomeSlider: document.getElementById('monthlyIncomeSlider'),
             monthlyExpensesSlider: document.getElementById('monthlyExpensesSlider'),
@@ -339,6 +353,8 @@
             const years = parseInt(docMap.years.value);
             const viewMode = docMap.viewMode.value;
             const maintenanceRatio = parseFloat(docMap.maintenanceRatio.value) / 100;
+            const incomeGrowthAnnual = parseFloat(docMap.incomeGrowth.value) / 100 || 0;
+            const expenseGrowthAnnual = parseFloat(docMap.expenseGrowth.value) / 100 || 0;
 
             const periods = viewMode === 'monthly' ? years * 12 : years;
             const interval = viewMode === 'monthly' ? 'Month' : 'Year';
@@ -357,17 +373,25 @@
             const equityData = [];
             const ratioData = [];
 
+            // apply growth to income/expenses over time
+            let currentIncome = monthlyIncome;
+            let currentExpenses = monthlyExpenses;
+            const incomePeriodGrowth = viewMode === 'monthly' ? Math.pow(1 + incomeGrowthAnnual, 1 / 12) - 1 : incomeGrowthAnnual;
+            const expensePeriodGrowth = viewMode === 'monthly' ? Math.pow(1 + expenseGrowthAnnual, 1 / 12) - 1 : expenseGrowthAnnual;
+
             for (let i = 1; i <= periods; i++) {
+                const thisPeriodIncome = viewMode === 'monthly' ? currentIncome : currentIncome * 12;
+                const thisPeriodExpense = viewMode === 'monthly' ? currentExpenses : currentExpenses * 12;
 
                 // Add net cash flow (income - expenses) to assets
-                const netCash = periodIncome;
+                const netCash = thisPeriodIncome;
                 asset += netCash;
 
                 //asset += periodIncome;
                 const dividends = asset * (viewMode === 'monthly' ? monthlyDivRate : dividendYield);
                 asset += dividends;
 
-                debt += periodExpense;
+                debt += thisPeriodExpense;
 
                 const interest = debt * (viewMode === 'monthly' ? monthlyMarginRate : marginRate);
                 debt += interest;
@@ -382,6 +406,9 @@
                 equityData.push(Math.round(equity));
                 ratioData.push(Number(((equity / asset) * 100).toFixed(1)));
 
+                // advance incomes/expenses
+                currentIncome *= (1 + incomePeriodGrowth);
+                currentExpenses *= (1 + expensePeriodGrowth);
                 // store maintenance flags per period by adding attribute arrays if needed later
             }
 
@@ -477,16 +504,22 @@
             }
 
             // Run the same period simulation and return true if ALL periods meet maintenance ratio
-            function simulateHealth(seed, monthlyIncome, monthlyExpenses, dividendYield, marginRate, years, viewMode, maintenanceRatio) {
+            function simulateHealth(seed, monthlyIncome, monthlyExpenses, incomeGrowthAnnual, expenseGrowthAnnual, dividendYield, marginRate, years, viewMode, maintenanceRatio) {
                 const periods = viewMode === 'monthly' ? years * 12 : years;
                 const monthlyDivRate = dividendYield / 12;
                 const monthlyMarginRate = marginRate / 12;
-                const periodIncome = viewMode === 'monthly' ? monthlyIncome : monthlyIncome * 12;
-                const periodExpense = viewMode === 'monthly' ? monthlyExpenses : monthlyExpenses * 12;
+                // compute per-period growth rates
+                const incomePeriodGrowth = viewMode === 'monthly' ? Math.pow(1 + incomeGrowthAnnual, 1 / 12) - 1 : incomeGrowthAnnual;
+                const expensePeriodGrowth = viewMode === 'monthly' ? Math.pow(1 + expenseGrowthAnnual, 1 / 12) - 1 : expenseGrowthAnnual;
 
                 let asset = seed;
                 let debt = 0;
+                let currentIncome = monthlyIncome;
+                let currentExpenses = monthlyExpenses;
                 for (let i = 1; i <= periods; i++) {
+                    const periodIncome = viewMode === 'monthly' ? currentIncome : currentIncome * 12;
+                    const periodExpense = viewMode === 'monthly' ? currentExpenses : currentExpenses * 12;
+
                     asset += periodIncome;
                     const dividends = asset * (viewMode === 'monthly' ? monthlyDivRate : dividendYield);
                     asset += dividends;
@@ -496,24 +529,28 @@
                     const equity = asset - debt;
                     const maintenanceRequirement = asset * maintenanceRatio;
                     if (equity < maintenanceRequirement) return false;
+
+                    // advance income/expenses for next period
+                    currentIncome *= (1 + incomePeriodGrowth);
+                    currentExpenses *= (1 + expensePeriodGrowth);
                 }
                 return true;
             }
 
             // Find minimal seed (rounded to slider step) that keeps all periods healthy using binary search
-            function computeRequiredSeed(monthlyIncome, monthlyExpenses, dividendYield, marginRate, years, viewMode, maintenanceRatio) {
+            function computeRequiredSeed(monthlyIncome, monthlyExpenses, incomeGrowthAnnual, expenseGrowthAnnual, dividendYield, marginRate, years, viewMode, maintenanceRatio) {
                 let low = 0;
                 let high = 1000000;
                 const step = 1000; // slider step for seed
                 // increase high until simulation is healthy or we reach a large cap
-                while (!simulateHealth(high, monthlyIncome, monthlyExpenses, dividendYield, marginRate, years, viewMode, maintenanceRatio) && high < 1e8) {
+                while (!simulateHealth(high, monthlyIncome, monthlyExpenses, incomeGrowthAnnual, expenseGrowthAnnual, dividendYield, marginRate, years, viewMode, maintenanceRatio) && high < 1e8) {
                     high *= 2;
                 }
                 if (high >= 1e8) return high; // give up and return very large
 
                 for (let i = 0; i < 40; i++) {
                     const mid = Math.round((low + high) / 2);
-                    if (simulateHealth(mid, monthlyIncome, monthlyExpenses, dividendYield, marginRate, years, viewMode, maintenanceRatio)) {
+                    if (simulateHealth(mid, monthlyIncome, monthlyExpenses, incomeGrowthAnnual, expenseGrowthAnnual, dividendYield, marginRate, years, viewMode, maintenanceRatio)) {
                         high = mid;
                     } else {
                         low = mid;
@@ -557,7 +594,9 @@
                     const maintenanceRatio = parseFloat(docMap.maintenanceRatio.value) / 100;
                     const monthlyIncome = parseFloat(docMap.monthlyIncome.value) || 0;
                     const monthlyExpenses = parseFloat(docMap.monthlyExpenses.value) || 0;
-                    const required = computeRequiredSeed(monthlyIncome, monthlyExpenses, dividendYield, marginRate, years, viewMode, maintenanceRatio);
+                    const incomeGrowthAnnual = parseFloat(docMap.incomeGrowth.value) / 100 || 0;
+                    const expenseGrowthAnnual = parseFloat(docMap.expenseGrowth.value) / 100 || 0;
+                    const required = computeRequiredSeed(monthlyIncome, monthlyExpenses, incomeGrowthAnnual, expenseGrowthAnnual, dividendYield, marginRate, years, viewMode, maintenanceRatio);
                     const seedEl = docMap.seed;
                     const seedS = docMap.seedSlider;
                     if (seedEl) seedEl.value = required;
