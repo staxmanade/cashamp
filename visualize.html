@@ -140,6 +140,10 @@
         td {
             color: #c0ffff;
         }
+        /* Improved checkbox layout for accessibility */
+        .form-group.checkbox-group { flex-direction: row; align-items: center; gap: 12px; }
+        .form-group.checkbox-group label { margin-bottom: 0; cursor: pointer; }
+        #keepHealthy { width: 20px; height: 20px; transform: scale(1.18); cursor: pointer; margin-left: 6px; }
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Roboto:wght@400;600;700&display=swap');
     </style>
 </head>
@@ -157,7 +161,7 @@
             <div class="form-group">
                 <label for="monthlyIncome">Monthly Income ($)</label>
                 <input type="number" id="monthlyIncome" value="10000" min="0" step="100">
-                <input type="range" id="monthlyIncomeSlider" min="0" max="200000" step="100" value="10000">
+                <input type="range" id="monthlyIncomeSlider" min="0" max="60000" step="100" value="10000">
             </div>
 
             <div class="form-group">
