@@ -193,6 +193,11 @@
                     <option value="yearly" selected>Yearly</option>
                 </select>
             </div>
+
+            <div class="form-group" style="align-items:flex-start;">
+                <label for="keepHealthy">Keep Maintenance Healthy</label>
+                <input type="checkbox" id="keepHealthy" checked>
+            </div>
         </div>
 
         <div class="button-row">
@@ -223,25 +228,30 @@
     </div>
 
     <script>
+
+        const elementKeysMap = {
+            seed: 'seed',
+            monthlyIncome: 'monthlyIncome',
+            monthlyExpenses: 'monthlyExpenses',
+            dividendYield: 'dividendYield',
+            marginRate: 'marginRate',
+            years: 'years',
+            viewMode: 'viewMode',
+            maintenanceRatio: 'maintenanceRatio',
+            keepHealthy: 'keepHealthy'
+        };
+
         // Helper: read query params and set inputs
         function loadFromQuery() {
             const params = new URLSearchParams(window.location.search);
-            const map = {
-                seed: 'seed',
-                monthlyIncome: 'monthlyIncome',
-                monthlyExpenses: 'monthlyExpenses',
-                dividendYield: 'dividendYield',
-                marginRate: 'marginRate',
-                years: 'years',
-                viewMode: 'viewMode',
-                maintenanceRatio: 'maintenanceRatio'
-            };
-            Object.keys(map).forEach(k => {
-                if (params.has(map[k])) {
-                    const el = document.getElementById(map[k]);
+
+            Object.keys(elementKeysMap).forEach(k => {
+                if (params.has(elementKeysMap[k])) {
+                    const el = document.getElementById(elementKeysMap[k]);
                     if (!el) return;
-                    const val = params.get(map[k]);
+                    const val = params.get(elementKeysMap[k]);
                     if (el.tagName === 'SELECT') el.value = val;
+                    else if (el.type === 'checkbox') el.checked = (val === 'true' || val === '1');
                     else el.value = val;
                 }
             });
@@ -250,11 +260,12 @@
         // Helper: update URL query params from inputs without reloading
         function updateQuery() {
             const params = new URLSearchParams();
-            const keys = ['seed','monthlyIncome','monthlyExpenses','dividendYield','marginRate','years','viewMode','maintenanceRatio'];
+            const keys = Object.keys(elementKeysMap);
             keys.forEach(k => {
                 const el = document.getElementById(k);
                 if (!el) return;
-                params.set(k, el.value);
+                if (el.type === 'checkbox') params.set(k, el.checked);
+                else params.set(k, el.value);
             });
             const url = window.location.pathname + '?' + params.toString();
             history.replaceState(null, '', url);
@@ -536,12 +547,36 @@
                 }, 150);
 
                 if (mi && miS) {
-                    miS.addEventListener('input', () => { mi.value = miS.value; adjustSeedDebounced(); });
-                    mi.addEventListener('input', () => { miS.value = mi.value; adjustSeedDebounced(); });
+                    miS.addEventListener('input', () => {
+                        mi.value = miS.value;
+                        const keep = document.getElementById('keepHealthy');
+                        if (keep && keep.checked) adjustSeedDebounced(); else runSimulation();
+                    });
+                    mi.addEventListener('input', () => {
+                        miS.value = mi.value;
+                        const keep = document.getElementById('keepHealthy');
+                        if (keep && keep.checked) adjustSeedDebounced(); else runSimulation();
+                    });
                 }
                 if (me && meS) {
-                    meS.addEventListener('input', () => { me.value = meS.value; adjustSeedDebounced(); });
-                    me.addEventListener('input', () => { meS.value = me.value; adjustSeedDebounced(); });
+                    meS.addEventListener('input', () => {
+                        me.value = meS.value;
+                        const keep = document.getElementById('keepHealthy');
+                        if (keep && keep.checked) adjustSeedDebounced(); else runSimulation();
+                    });
+                    me.addEventListener('input', () => {
+                        meS.value = me.value;
+                        const keep = document.getElementById('keepHealthy');
+                        if (keep && keep.checked) adjustSeedDebounced(); else runSimulation();
+                    });
+                }
+
+                const keep = document.getElementById('keepHealthy');
+                if (keep) {
+                    keep.addEventListener('change', () => {
+                        if (keep.checked) adjustSeedDebounced();
+                        else runSimulation();
+                    });
                 }
             }
 
