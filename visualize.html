@@ -151,16 +151,19 @@
             <div class="form-group">
                 <label for="seed">Starting Seed Capital ($)</label>
                 <input type="number" id="seed" value="100000" min="0" step="1000">
+                <input type="range" id="seedSlider" min="0" max="2000000" step="1000" value="100000">
             </div>
 
             <div class="form-group">
                 <label for="monthlyIncome">Monthly Income ($)</label>
                 <input type="number" id="monthlyIncome" value="10000" min="0" step="100">
+                <input type="range" id="monthlyIncomeSlider" min="0" max="200000" step="100" value="10000">
             </div>
 
             <div class="form-group">
                 <label for="monthlyExpenses">Monthly Expenses ($)</label>
                 <input type="number" id="monthlyExpenses" value="10000" min="0" step="100">
+                <input type="range" id="monthlyExpensesSlider" min="0" max="200000" step="100" value="10000">
             </div>
 
             <div class="form-group">
@@ -434,6 +437,123 @@
             if (copyBtn) copyBtn.addEventListener('click', copyScenario);
             runSimulation();
         };
+            // Sync sliders with number inputs, compute required seed, and wire events
+            function debounce(fn, delay) {
+                let t;
+                return function(...args) {
+                    clearTimeout(t);
+                    t = setTimeout(() => fn.apply(this, args), delay);
+                };
+            }
+
+            // Run the same period simulation and return true if ALL periods meet maintenance ratio
+            function simulateHealth(seed, monthlyIncome, monthlyExpenses, dividendYield, marginRate, years, viewMode, maintenanceRatio) {
+                const periods = viewMode === 'monthly' ? years * 12 : years;
+                const monthlyDivRate = dividendYield / 12;
+                const monthlyMarginRate = marginRate / 12;
+                const periodIncome = viewMode === 'monthly' ? monthlyIncome : monthlyIncome * 12;
+                const periodExpense = viewMode === 'monthly' ? monthlyExpenses : monthlyExpenses * 12;
+
+                let asset = seed;
+                let debt = 0;
+                for (let i = 1; i <= periods; i++) {
+                    asset += periodIncome;
+                    const dividends = asset * (viewMode === 'monthly' ? monthlyDivRate : dividendYield);
+                    asset += dividends;
+                    debt += periodExpense;
+                    const interest = debt * (viewMode === 'monthly' ? monthlyMarginRate : marginRate);
+                    debt += interest;
+                    const equity = asset - debt;
+                    const maintenanceRequirement = asset * maintenanceRatio;
+                    if (equity < maintenanceRequirement) return false;
+                }
+                return true;
+            }
+
+            // Find minimal seed (rounded to slider step) that keeps all periods healthy using binary search
+            function computeRequiredSeed(monthlyIncome, monthlyExpenses, dividendYield, marginRate, years, viewMode, maintenanceRatio) {
+                let low = 0;
+                let high = 1000000;
+                const step = 1000; // slider step for seed
+                // increase high until simulation is healthy or we reach a large cap
+                while (!simulateHealth(high, monthlyIncome, monthlyExpenses, dividendYield, marginRate, years, viewMode, maintenanceRatio) && high < 1e8) {
+                    high *= 2;
+                }
+                if (high >= 1e8) return high; // give up and return very large
+
+                for (let i = 0; i < 40; i++) {
+                    const mid = Math.round((low + high) / 2);
+                    if (simulateHealth(mid, monthlyIncome, monthlyExpenses, dividendYield, marginRate, years, viewMode, maintenanceRatio)) {
+                        high = mid;
+                    } else {
+                        low = mid;
+                    }
+                    if (high - low <= step) break;
+                }
+                // round up to step to ensure stability
+                return Math.ceil(high / step) * step;
+            }
+
+            function syncSlidersFromInputs() {
+                const seed = document.getElementById('seed');
+                const seedSlider = document.getElementById('seedSlider');
+                if (seed && seedSlider) seedSlider.value = seed.value;
+                const mi = document.getElementById('monthlyIncome');
+                const miS = document.getElementById('monthlyIncomeSlider');
+                if (mi && miS) miS.value = mi.value;
+                const me = document.getElementById('monthlyExpenses');
+                const meS = document.getElementById('monthlyExpensesSlider');
+                if (me && meS) meS.value = me.value;
+            }
+
+            function wireSliderSync() {
+                const seed = document.getElementById('seed');
+                const seedSlider = document.getElementById('seedSlider');
+                const mi = document.getElementById('monthlyIncome');
+                const miS = document.getElementById('monthlyIncomeSlider');
+                const me = document.getElementById('monthlyExpenses');
+                const meS = document.getElementById('monthlyExpensesSlider');
+
+                if (seed && seedSlider) {
+                    seedSlider.addEventListener('input', () => { seed.value = seedSlider.value; runSimulation(); });
+                    seed.addEventListener('input', () => { seedSlider.value = seed.value; runSimulation(); });
+                }
+
+                const adjustSeedDebounced = debounce(() => {
+                    const dividendYield = parseFloat(document.getElementById('dividendYield').value) / 100;
+                    const marginRate = parseFloat(document.getElementById('marginRate').value) / 100;
+                    const years = parseInt(document.getElementById('years').value);
+                    const viewMode = document.getElementById('viewMode').value;
+                    const maintenanceRatio = parseFloat(document.getElementById('maintenanceRatio').value) / 100;
+                    const monthlyIncome = parseFloat(document.getElementById('monthlyIncome').value) || 0;
+                    const monthlyExpenses = parseFloat(document.getElementById('monthlyExpenses').value) || 0;
+                    const required = computeRequiredSeed(monthlyIncome, monthlyExpenses, dividendYield, marginRate, years, viewMode, maintenanceRatio);
+                    const seedEl = document.getElementById('seed');
+                    const seedS = document.getElementById('seedSlider');
+                    if (seedEl) seedEl.value = required;
+                    if (seedS) seedS.value = required;
+                    runSimulation();
+                }, 150);
+
+                if (mi && miS) {
+                    miS.addEventListener('input', () => { mi.value = miS.value; adjustSeedDebounced(); });
+                    mi.addEventListener('input', () => { miS.value = mi.value; adjustSeedDebounced(); });
+                }
+                if (me && meS) {
+                    meS.addEventListener('input', () => { me.value = meS.value; adjustSeedDebounced(); });
+                    me.addEventListener('input', () => { meS.value = me.value; adjustSeedDebounced(); });
+                }
+            }
+
+            // Wire up copy button and load inputs from URL, then run
+            window.onload = function() {
+                loadFromQuery();
+                syncSlidersFromInputs();
+                wireSliderSync();
+                const copyBtn = document.getElementById('copyScenarioBtn');
+                if (copyBtn) copyBtn.addEventListener('click', copyScenario);
+                runSimulation();
+            };
 
         // Update query whenever simulation runs
 
