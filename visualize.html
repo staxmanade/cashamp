@@ -163,7 +163,7 @@
             <div class="form-group">
                 <label for="monthlyExpenses">Monthly Expenses ($)</label>
                 <input type="number" id="monthlyExpenses" value="10000" min="0" step="100">
-                <input type="range" id="monthlyExpensesSlider" min="0" max="200000" step="100" value="10000">
+                <input type="range" id="monthlyExpensesSlider" min="0" max="60000" step="100" value="10000">
             </div>
 
             <div class="form-group">
@@ -292,7 +292,7 @@
 
         // temporary message toast
         function showTempMessage(msg) {
-            let el = document.getElementById('tempMsg');
+            let el = docMap.tempMsg;
             if (!el) {
                 el = document.createElement('div');
                 el.id = 'tempMsg';
@@ -312,14 +312,33 @@
         }
         let chart;
 
+        const docMap = {
+            seed: document.getElementById('seed'),
+            monthlyIncome: document.getElementById('monthlyIncome'),
+            dividendYield: document.getElementById('dividendYield'),
+            marginRate: document.getElementById('marginRate'),
+            years: document.getElementById('years'),
+            viewMode: document.getElementById('viewMode'),
+            maintenanceRatio: document.getElementById('maintenanceRatio'),
+            monthlyExpenses: document.getElementById('monthlyExpenses'),
+            maintenanceWarning: document.getElementById('maintenanceWarning'),
+            monthlyIncomeSlider: document.getElementById('monthlyIncomeSlider'),
+            monthlyExpensesSlider: document.getElementById('monthlyExpensesSlider'),
+            growthChart: document.getElementById('growthChart'),
+            tempMsg: document.getElementById('tempMsg'),
+            copyScenarioBtn: document.getElementById('copyScenarioBtn'),
+            seedSlider: document.getElementById('seedSlider'),
+            keepHealthy: document.getElementById('keepHealthy'),
+        };
+
         function runSimulation() {
-            const seed = parseFloat(document.getElementById('seed').value);
-            const monthlyIncome = parseFloat(document.getElementById('monthlyIncome').value);
-            const dividendYield = parseFloat(document.getElementById('dividendYield').value) / 100;
-            const marginRate = parseFloat(document.getElementById('marginRate').value) / 100;
-            const years = parseInt(document.getElementById('years').value);
-            const viewMode = document.getElementById('viewMode').value;
-            const maintenanceRatio = parseFloat(document.getElementById('maintenanceRatio').value) / 100;
+            const seed = parseFloat(docMap.seed.value);
+            const monthlyIncome = parseFloat(docMap.monthlyIncome.value);
+            const dividendYield = parseFloat(docMap.dividendYield.value) / 100;
+            const marginRate = parseFloat(docMap.marginRate.value) / 100;
+            const years = parseInt(docMap.years.value);
+            const viewMode = docMap.viewMode.value;
+            const maintenanceRatio = parseFloat(docMap.maintenanceRatio.value) / 100;
 
             const periods = viewMode === 'monthly' ? years * 12 : years;
             const interval = viewMode === 'monthly' ? 'Month' : 'Year';
@@ -327,7 +346,7 @@
             const monthlyMarginRate = marginRate / 12;
             const periodIncome = viewMode === 'monthly' ? monthlyIncome : monthlyIncome * 12;
 
-            const monthlyExpenses = parseFloat(document.getElementById('monthlyExpenses').value) || 0;
+            const monthlyExpenses = parseFloat(docMap.monthlyExpenses.value) || 0;
             const periodExpense = viewMode === 'monthly' ? monthlyExpenses : monthlyExpenses * 12;
 
             let asset = seed;
@@ -368,7 +387,7 @@
 
             // Update Table
             const anyBelow = ratioData.some(r => r < (maintenanceRatio * 100));
-            const warningEl = document.getElementById('maintenanceWarning');
+            const warningEl = docMap.maintenanceWarning;
             if (anyBelow) {
                 warningEl.style.display = 'block';
                 warningEl.style.background = 'linear-gradient(90deg, #441111, #662222)';
@@ -398,7 +417,7 @@
             });
 
             // Update Chart
-            const ctx = document.getElementById('growthChart').getContext('2d');
+            const ctx = docMap.growthChart.getContext('2d');
             if (chart) chart.destroy();
             chart = new Chart(ctx, {
                 type: 'line',
@@ -444,7 +463,7 @@
         // Wire up copy button and load inputs from URL, then run
         window.onload = function() {
             loadFromQuery();
-            const copyBtn = document.getElementById('copyScenarioBtn');
+            const copyBtn = docMap.copyScenarioBtn;
             if (copyBtn) copyBtn.addEventListener('click', copyScenario);
             runSimulation();
         };
@@ -506,24 +525,24 @@
             }
 
             function syncSlidersFromInputs() {
-                const seed = document.getElementById('seed');
-                const seedSlider = document.getElementById('seedSlider');
+                const seed = docMap.seed;
+                const seedSlider = docMap.seedSlider;
                 if (seed && seedSlider) seedSlider.value = seed.value;
-                const mi = document.getElementById('monthlyIncome');
-                const miS = document.getElementById('monthlyIncomeSlider');
+                const mi = docMap.monthlyIncome;
+                const miS = docMap.monthlyIncomeSlider;
                 if (mi && miS) miS.value = mi.value;
-                const me = document.getElementById('monthlyExpenses');
-                const meS = document.getElementById('monthlyExpensesSlider');
+                const me = docMap.monthlyExpenses;
+                const meS = docMap.monthlyExpensesSlider;
                 if (me && meS) meS.value = me.value;
             }
 
             function wireSliderSync() {
-                const seed = document.getElementById('seed');
-                const seedSlider = document.getElementById('seedSlider');
-                const mi = document.getElementById('monthlyIncome');
-                const miS = document.getElementById('monthlyIncomeSlider');
-                const me = document.getElementById('monthlyExpenses');
-                const meS = document.getElementById('monthlyExpensesSlider');
+                const seed = docMap.seed;
+                const seedSlider = docMap.seedSlider;
+                const mi = docMap.monthlyIncome;
+                const miS = docMap.monthlyIncomeSlider;
+                const me = docMap.monthlyExpenses;
+                const meS = docMap.monthlyExpensesSlider;
 
                 if (seed && seedSlider) {
                     seedSlider.addEventListener('input', () => { seed.value = seedSlider.value; runSimulation(); });
@@ -531,16 +550,16 @@
                 }
 
                 const adjustSeedDebounced = debounce(() => {
-                    const dividendYield = parseFloat(document.getElementById('dividendYield').value) / 100;
-                    const marginRate = parseFloat(document.getElementById('marginRate').value) / 100;
-                    const years = parseInt(document.getElementById('years').value);
-                    const viewMode = document.getElementById('viewMode').value;
-                    const maintenanceRatio = parseFloat(document.getElementById('maintenanceRatio').value) / 100;
-                    const monthlyIncome = parseFloat(document.getElementById('monthlyIncome').value) || 0;
-                    const monthlyExpenses = parseFloat(document.getElementById('monthlyExpenses').value) || 0;
+                    const dividendYield = parseFloat(docMap.dividendYield.value) / 100;
+                    const marginRate = parseFloat(docMap.marginRate.value) / 100;
+                    const years = parseInt(docMap.years.value);
+                    const viewMode = docMap.viewMode.value;
+                    const maintenanceRatio = parseFloat(docMap.maintenanceRatio.value) / 100;
+                    const monthlyIncome = parseFloat(docMap.monthlyIncome.value) || 0;
+                    const monthlyExpenses = parseFloat(docMap.monthlyExpenses.value) || 0;
                     const required = computeRequiredSeed(monthlyIncome, monthlyExpenses, dividendYield, marginRate, years, viewMode, maintenanceRatio);
-                    const seedEl = document.getElementById('seed');
-                    const seedS = document.getElementById('seedSlider');
+                    const seedEl = docMap.seed;
+                    const seedS = docMap.seedSlider;
                     if (seedEl) seedEl.value = required;
                     if (seedS) seedS.value = required;
                     runSimulation();
@@ -549,29 +568,29 @@
                 if (mi && miS) {
                     miS.addEventListener('input', () => {
                         mi.value = miS.value;
-                        const keep = document.getElementById('keepHealthy');
+                        const keep = docMap.keepHealthy;
                         if (keep && keep.checked) adjustSeedDebounced(); else runSimulation();
                     });
                     mi.addEventListener('input', () => {
                         miS.value = mi.value;
-                        const keep = document.getElementById('keepHealthy');
+                        const keep = docMap.keepHealthy;
                         if (keep && keep.checked) adjustSeedDebounced(); else runSimulation();
                     });
                 }
                 if (me && meS) {
                     meS.addEventListener('input', () => {
                         me.value = meS.value;
-                        const keep = document.getElementById('keepHealthy');
+                        const keep = docMap.keepHealthy;
                         if (keep && keep.checked) adjustSeedDebounced(); else runSimulation();
                     });
                     me.addEventListener('input', () => {
                         meS.value = me.value;
-                        const keep = document.getElementById('keepHealthy');
+                        const keep = docMap.keepHealthy;
                         if (keep && keep.checked) adjustSeedDebounced(); else runSimulation();
                     });
                 }
 
-                const keep = document.getElementById('keepHealthy');
+                const keep = docMap.keepHealthy;
                 if (keep) {
                     keep.addEventListener('change', () => {
                         if (keep.checked) adjustSeedDebounced();
@@ -585,7 +604,7 @@
                 loadFromQuery();
                 syncSlidersFromInputs();
                 wireSliderSync();
-                const copyBtn = document.getElementById('copyScenarioBtn');
+                const copyBtn = docMap.copyScenarioBtn;
                 if (copyBtn) copyBtn.addEventListener('click', copyScenario);
                 runSimulation();
             };
