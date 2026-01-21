@@ -140,6 +140,32 @@
         td {
             color: #c0ffff;
         }
+        /* Sticky table header so headings remain visible while scrolling */
+        #dataTable thead th {
+            position: sticky;
+            z-index: 60;
+            background: linear-gradient(135deg, #00ffff22, #00ffaa22);
+            backdrop-filter: blur(6px);
+            box-shadow: 0 6px 18px rgba(0,0,0,0.25);
+        }
+        /* Fallback / cloned header (used when native sticky isn't sufficient) */
+        .cloned-header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            display: none;
+            z-index: 120;
+            pointer-events: none;
+            overflow: hidden;
+        }
+        .cloned-header table { border-collapse: collapse; margin: 0; }
+        .cloned-header th {
+            background: linear-gradient(135deg, #00ffff22, #00ffaa22);
+            color: #e0e0ff;
+            padding: 14px 12px;
+            text-align: right;
+            box-shadow: 0 6px 18px rgba(0,0,0,0.12);
+        }
         /* Improved checkbox layout for accessibility */
         .form-group.checkbox-group { flex-direction: row; align-items: center; gap: 12px; }
         .form-group.checkbox-group label { margin-bottom: 0; cursor: pointer; }
@@ -649,6 +675,7 @@
                 wireSliderSync();
                 const copyBtn = docMap.copyScenarioBtn;
                 if (copyBtn) copyBtn.addEventListener('click', copyScenario);
+                initStickyTableHeader();
                 runSimulation();
             };
 
@@ -666,6 +693,84 @@
                 }, 150);
             });
         })();
+
+        // Sticky cloned header to emulate "freeze row" behavior (Google Sheets-like)
+        function initStickyTableHeader() {
+            const table = document.getElementById('dataTable');
+            if (!table) return;
+
+            // create wrapper for cloned header
+            let cloneWrap = document.querySelector('.cloned-header');
+            if (!cloneWrap) {
+                cloneWrap = document.createElement('div');
+                cloneWrap.className = 'cloned-header';
+                document.body.appendChild(cloneWrap);
+            }
+
+            const originalThead = table.querySelector('thead');
+            if (!originalThead) return;
+
+            // create cloned table and thead
+            function buildClone() {
+                cloneWrap.innerHTML = '';
+                const cloneTable = document.createElement('table');
+                // copy basic width style
+                cloneTable.style.width = table.getBoundingClientRect().width + 'px';
+                const theadClone = originalThead.cloneNode(true);
+                cloneTable.appendChild(theadClone);
+                cloneWrap.appendChild(cloneTable);
+
+                // copy widths for each th to avoid layout shift
+                const origThs = Array.from(originalThead.querySelectorAll('th'));
+                const cloneThs = Array.from(theadClone.querySelectorAll('th'));
+                origThs.forEach((ot, i) => {
+                    const rect = ot.getBoundingClientRect();
+                    if (cloneThs[i]) cloneThs[i].style.width = rect.width + 'px';
+                });
+                positionClone();
+            }
+
+            function positionClone() {
+                const rect = table.getBoundingClientRect();
+                const wrapRect = cloneWrap.getBoundingClientRect();
+                const left = rect.left;
+                const top = 0; // pin to viewport top
+                cloneWrap.style.left = left + 'px';
+                cloneWrap.style.top = top + 'px';
+                cloneWrap.style.width = rect.width + 'px';
+            }
+
+            function onScroll() {
+                const rect = table.getBoundingClientRect();
+                const theadHeight = originalThead.getBoundingClientRect().height;
+                // show cloned header when original thead scrolls off top but table still visible
+                if (rect.top < 0 && rect.bottom > theadHeight) {
+                    if (cloneWrap.style.display !== 'block') {
+                        buildClone();
+                        cloneWrap.style.display = 'block';
+                    } else {
+                        // still update position/width in case of horizontal scroll
+                        positionClone();
+                    }
+                } else {
+                    cloneWrap.style.display = 'none';
+                }
+            }
+
+            // Rebuild on resize to recalc widths
+            let rebuildTimeout;
+            window.addEventListener('resize', () => {
+                clearTimeout(rebuildTimeout);
+                rebuildTimeout = setTimeout(() => {
+                    if (cloneWrap.style.display === 'block') buildClone();
+                }, 120);
+            });
+
+            // Listen for scroll and update
+            window.addEventListener('scroll', onScroll, { passive: true });
+            // Also on load to set initial state
+            onScroll();
+        }
     </script>
 </body>
 </html>
